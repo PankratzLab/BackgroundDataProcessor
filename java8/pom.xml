@@ -4,14 +4,18 @@
 	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
 	<modelVersion>4.0.0</modelVersion>
 
+	<!--	
 	<parent>
 		<artifactId>BackgroundDataProcessor</artifactId>
 		<groupId>org.pankratzlab</groupId>
 		<version>1.0-SNAPSHOT</version>
 	</parent>
-
+	-->
+	
 	<artifactId>BackgroundDataProcessor-java8</artifactId>
 	<name>BackgroundDataProcessor-java8</name>
+	<groupId>org.pankratzlab</groupId>
+	<version>1.0-SNAPSHOT</version>
 
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -34,13 +38,16 @@
 	<distributionManagement>
 		<repository>
 			<id>github-donor-check</id>
-			<url>https://maven.pkg.github.com/PankratzLab/BackgroundDataProcessor/java8</url>
+			<url>
+				https://maven.pkg.github.com/PankratzLab/BackgroundDataProcessor/java8</url>
 		</repository>
 	</distributionManagement>
 
 	<scm>
-		<connection>scm:git:git://github.com/PankratzLab/BackgroundDataProcessor/java8</connection>
-		<developerConnection>scm:git:git@github.com:PankratzLab/BackgroundDataProcessor/java8</developerConnection>
+		<connection>
+			scm:git:git://github.com/PankratzLab/BackgroundDataProcessor/java8</connection>
+		<developerConnection>
+			scm:git:git@github.com:PankratzLab/BackgroundDataProcessor/java8</developerConnection>
 		<tag>HEAD</tag>
 		<url>https://github.com/PankratzLab/BackgroundDataProcessor/java8</url>
 	</scm>
