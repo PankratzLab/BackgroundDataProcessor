@@ -12,6 +12,11 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 
+/**
+ * @Deprecated "Not kept up to date with Java 8 version"
+ * @param <K>
+ * @param <V>
+ */
 public class BackgroundDataProcessor<K, V> implements Function<K, V> {
   private final ListeningExecutorService executorService;
   private final LoadingCache<K, V> cache;
