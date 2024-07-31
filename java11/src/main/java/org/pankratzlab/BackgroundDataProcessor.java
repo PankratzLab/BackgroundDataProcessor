@@ -1,7 +1,9 @@
 package org.pankratzlab;
 
 import java.util.Collection;
+import java.util.Iterator;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadPoolExecutor;
 import java.util.function.Function;
 
 import com.google.common.cache.CacheBuilder;
@@ -13,41 +15,66 @@ import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 
 /**
- * @Deprecated "Not kept up to date with Java 8 version"
- * @param <K>
- * @param <V>
+ * Upon creation, will block until the first value in the given collection is loaded, and then start
+ * to load remaining data into a cache in background threads. Values in the cache are weak, and are
+ * invalidated immediately after access, so as soon as they are no longer referenced they will
+ * disappear! Similarly, the first value will be removed after it is first accessed, meaning
+ * subsequent accesses will recompute this value.
+ * 
+ * @param <K> Key type of the cache.
+ * @param <V> Value type of the cache.
  */
 public class BackgroundDataProcessor<K, V> implements Function<K, V> {
   private final ListeningExecutorService executorService;
   private final LoadingCache<K, V> cache;
+  private K firstKey;
+  private V firstValue;
 
   public BackgroundDataProcessor(Collection<K> list, Function<K, V> valueLoader,
-                                 Function<Throwable, V> exceptionHandler,
+                                 Function<Throwable, V> valueLoadingExceptionHandler,
                                  RemovalListener<K, V> removalListener) {
-    executorService = MoreExecutors.listeningDecorator(Executors.newFixedThreadPool(Runtime.getRuntime()
-                                                                                           .availableProcessors()));
-    var builder = CacheBuilder.newBuilder().weakValues();
+
+    executorService = MoreExecutors.listeningDecorator(MoreExecutors.getExitingExecutorService((ThreadPoolExecutor) Executors.newFixedThreadPool(Math.min(list.size(),
+                                                                                                                                                          Runtime.getRuntime()
+                                                                                                                                                                 .availableProcessors()))));
+
+    // Use casting here to match the type expected for LoadingCache
+    @SuppressWarnings("unchecked")
+    CacheBuilder<K, V> builder = (CacheBuilder<K, V>) CacheBuilder.newBuilder().weakValues();
     if (removalListener != null) {
       builder.removalListener(removalListener);
     }
-    cache = builder.build(new CacheLoader<>() {
+
+    cache = builder.build(new CacheLoader<K, V>() {
       public V load(K key) {
-        return compute(valueLoader, key, exceptionHandler);
+        return compute(valueLoader, key, valueLoadingExceptionHandler);
       }
 
+      @Override
       public ListenableFuture<V> reload(K key, V oldValue) {
-        return executorService.submit(() -> compute(valueLoader, key, exceptionHandler));
+        return executorService.submit(() -> compute(valueLoader, key,
+                                                    valueLoadingExceptionHandler));
       }
     });
-    list.forEach(this::asyncPreloadCache);
+
+    Iterator<K> iter = list.iterator();
+    // pull the first key
+    firstKey = iter.next();
+
+    // Preload the cache with remaining keys
+    iter.forEachRemaining(this::asyncPreloadCache);
+
+    // load the first value, causing this to block until the first value is loaded
+    firstValue = compute(valueLoader, firstKey, valueLoadingExceptionHandler);
   }
 
-  private V compute(Function<K, V> valueLoader, K key, Function<Throwable, V> exceptionHandler) {
+  private V compute(Function<K, V> valueLoader, K key,
+                    Function<Throwable, V> valueLoadingExceptionHandler) {
     try {
       return valueLoader.apply(key);
     } catch (Throwable t) {
-      if (exceptionHandler != null) {
-        return exceptionHandler.apply(t);
+      if (valueLoadingExceptionHandler != null) {
+        return valueLoadingExceptionHandler.apply(t);
       } else {
         throw new RuntimeException("Unhandled exception during cache load", t);
       }
@@ -59,8 +86,15 @@ public class BackgroundDataProcessor<K, V> implements Function<K, V> {
   }
 
   public V get(K key) {
-    V value = cache.getUnchecked(key);
-    cache.invalidate(key);
+    if (firstKey != null && key.equals(firstKey)) {
+      V value = firstValue;
+      firstValue = null;
+      firstKey = null;
+      return value;
+    }
+    V value = cache.getUnchecked(key); // this call blocks until the value is ready
+    cache.invalidate(key); // Invalidate the entry after access to ensure it is eligible for garbage
+                           // collection
     return value;
   }
 
