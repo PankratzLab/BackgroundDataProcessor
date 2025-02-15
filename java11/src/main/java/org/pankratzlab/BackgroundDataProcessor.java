@@ -30,6 +30,15 @@ public class BackgroundDataProcessor<K, V> implements Function<K, V> {
   private K firstKey;
   private V firstValue;
 
+  public BackgroundDataProcessor(Collection<K> list, Function<K, V> valueLoader) {
+    this(list, valueLoader, null, null);
+  }
+
+  public BackgroundDataProcessor(Collection<K> list, Function<K, V> valueLoader,
+                                 Function<Throwable, V> valueLoadingExceptionHandler) {
+    this(list, valueLoader, valueLoadingExceptionHandler, null);
+  }
+
   public BackgroundDataProcessor(Collection<K> list, Function<K, V> valueLoader,
                                  Function<Throwable, V> valueLoadingExceptionHandler,
                                  RemovalListener<K, V> removalListener) {
